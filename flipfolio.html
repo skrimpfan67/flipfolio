@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Flipfolio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* VOICE: a brokerage app, calm and confident, money front and centre.
+   IDEA: a stock-trading portfolio screen, but the tickers are GE items.
+   PICTURE: one huge portfolio value and a full-bleed glowing line chart you can scrub.
+   COLOUR and TYPE: pure black/white ground, trading green up, orange-red down; Inter Tight numbers.
+   LAYOUT: single phone column: value, chart, ranges, actions, holdings, activity; bottom sheet for edits. */
+:root{color-scheme:light dark;--bg:light-dark(#ffffff,#000000);--ink:light-dark(#0b0b0b,#ffffff);--mut:light-dark(#6b6b70,#8e8e93);--line:light-dark(#ececee,#1c1c1e);--card:light-dark(#f4f4f6,#111113);--up:light-dark(#00a805,#00c805);--down:light-dark(#e04400,#ff5000);--acc:var(--up)}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 Inter,system-ui,sans-serif;overflow-x:clip;-webkit-tap-highlight-color:transparent}
+.wrap{max-width:640px;margin:0 auto;padding:calc(env(safe-area-inset-top) + 20px) max(5vw,18px) calc(env(safe-area-inset-bottom) + 40px)}
+.num{font-family:"Inter Tight",Inter,sans-serif;font-variant-numeric:tabular-nums;white-space:nowrap}
+.lbl{color:var(--mut);font-size:14px;margin:0}
+#total{font-size:clamp(38px,11vw,52px);font-weight:700;line-height:1.05;margin:4px 0 6px;letter-spacing:-.02em}
+#chg{font-size:15px;font-weight:600;margin:0}
+.up{color:var(--up)}.down{color:var(--down)}
+#status{font-size:13px;color:var(--mut);margin:6px 0 0;min-height:20px}
+.fig{position:relative;height:220px;margin:14px calc(-1 * max(5vw,18px)) 0;touch-action:pan-y}
+.fig>svg{position:absolute;inset:0;width:100%;height:100%}
+#hint{position:absolute;left:0;right:0;bottom:42%;text-align:center;color:var(--mut);font-size:13px;pointer-events:none}
+.ranges{display:flex;gap:4px;border-bottom:1px solid var(--line);padding:8px 0 12px}
+.ranges button{flex:1;background:none;border:0;color:var(--acc);font:600 14px Inter,sans-serif;height:36px;border-radius:8px;cursor:pointer}
+.ranges button.on{background:var(--acc);color:var(--bg)}
+.acts{display:flex;gap:10px;margin:18px 0}
+.btn{flex:1;height:48px;border-radius:24px;border:0;background:var(--acc);color:var(--bg);font:600 16px Inter,sans-serif;cursor:pointer}
+.btn.ghost{background:var(--card);color:var(--ink)}
+.btn:focus-visible,.ranges button:focus-visible,.row:focus-visible,input:focus-visible,.tabs button:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:26px}
+.stat{background:var(--card);border-radius:14px;padding:12px}
+.stat b{display:block;font:600 18px "Inter Tight",sans-serif;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+h2{font:700 22px "Inter Tight",sans-serif;margin:0 0 6px}
+.row{display:flex;align-items:center;gap:12px;width:100%;padding:14px 0;border:0;border-bottom:1px solid var(--line);background:none;color:inherit;text-align:left;font:inherit;cursor:pointer;min-height:64px}
+.row .nm{flex:1}.row .nm b{display:block;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row .nm span{font-size:13px;color:var(--mut)}
+.row .rt{text-align:right}.row .rt b{display:block;font:600 16px "Inter Tight",sans-serif}
+.pill{display:inline-block;margin-top:3px;padding:2px 8px;border-radius:6px;font:600 13px "Inter Tight",sans-serif;color:#fff;background:var(--up)}
+.pill.down{background:var(--down);color:#fff}
+.empty{padding:28px 0;color:var(--mut);text-align:center}
+.log{font-size:14px;color:var(--mut)}.log div{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid var(--line)}
+.log div span:first-child{color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.foot{font-size:13px;color:var(--mut);margin-top:28px}
+.foot a{color:var(--acc)}
+/* sheet */
+#veil{position:fixed;inset:0;background:rgba(0,0,0,.5);opacity:0;pointer-events:none;transition:opacity .2s}
+#veil.on{opacity:1;pointer-events:auto}
+#sheet{position:fixed;left:0;right:0;bottom:0;max-width:640px;margin:0 auto;background:var(--bg);border-radius:20px 20px 0 0;padding:10px max(5vw,18px) calc(env(safe-area-inset-bottom) + 22px);transform:translateY(105%);transition:transform .25s ease;max-height:88vh;overflow:auto;border-top:1px solid var(--line)}
+#sheet.on{transform:none}
+.grab{width:40px;height:5px;border-radius:3px;background:var(--line);margin:0 auto 14px}
+#sheet h3{font:700 24px "Inter Tight",sans-serif;margin:0}
+.field{margin:14px 0 0}.field label{display:block;font-size:14px;color:var(--mut);margin-bottom:4px}
+input{width:100%;height:48px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--ink);font:16px Inter,sans-serif;padding:0 14px}
+.two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
+.tabs{display:flex;gap:6px;margin:16px 0 4px;background:var(--card);padding:4px;border-radius:12px}
+.tabs button{flex:1;height:38px;border:0;border-radius:9px;background:none;color:var(--mut);font:600 14px Inter,sans-serif;cursor:pointer}
+.tabs button.on{background:var(--bg);color:var(--ink)}
+.note{font-size:13px;color:var(--mut);margin:10px 0 0}
+.err{color:var(--down);font-size:14px;min-height:20px;margin:8px 0 0}
+.del{background:none;border:0;color:var(--down);font:600 15px Inter,sans-serif;height:44px;margin-top:8px;width:100%;cursor:pointer}
+label.tog{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--mut);margin-top:10px}
+label.tog input{width:20px;height:20px}
+@media(prefers-reduced-motion:reduce){#sheet,#veil{transition:none}}
+</style>
+</head>
+<body>
+<main class="wrap">
+  <p class="lbl">Portfolio value</p>
+  <div id="total" class="num">0</div>
+  <p id="chg" class="num">+0 (0.00%) All time</p>
+  <p id="status">Loading…</p>
+  <div class="fig" id="fig"><svg id="chart" aria-label="Portfolio value chart"></svg><div id="hint"></div></div>
+  <div class="ranges" id="ranges">
+    <button data-r="1d">1D</button><button data-r="1w">1W</button><button data-r="1m">1M</button><button data-r="3m">3M</button><button data-r="all" class="on">All</button>
+  </div>
+  <div class="acts">
+    <button class="btn" id="addBtn">Add item</button>
+    <button class="btn ghost" id="refBtn">Refresh prices</button>
+  </div>
+  <div class="stats">
+    <div class="stat"><span class="lbl">Cost basis</span><b class="num" id="sCost">0</b></div>
+    <div class="stat"><span class="lbl">Unrealized</span><b class="num" id="sUnr">0</b></div>
+    <div class="stat"><span class="lbl">Realized</span><b class="num" id="sReal">0</b></div>
+  </div>
+  <h2>Holdings</h2>
+  <div id="list"></div>
+  <h2 style="margin-top:30px">Activity</h2>
+  <div class="log" id="log"></div>
+  <label class="tog"><input type="checkbox" id="taxTog" checked> Value holdings after the 2% GE tax (capped at 5M per item)</label>
+  <p class="foot">Prices in gp. Type amounts like <b>1.5m</b>, <b>250k</b> or <b>12,400</b>. Live prices come from the <a href="https://prices.runescape.wiki">OSRS Wiki real-time prices</a> when the app can reach it.</p>
+</main>
+<div id="veil"></div>
+<div id="sheet" role="dialog" aria-modal="true"><div class="grab"></div><div id="sheetIn"></div></div>
+<datalist id="items"></datalist>
+<script>
+{
+const $=s=>document.querySelector(s);
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const KEY='flipfolio-v1';
+let S={positions:[],realized:0,history:[],log:[],tax:true};
+let range='all',ref=null,saving=false,again=false,map=null,openId=null,tab='price',delArm=false;
+
+function parseGp(v){const m=String(v||'').trim().toLowerCase().replace(/[, ]/g,'').replace(/gp$/,'').match(/^(\d*\.?\d+)([kmb])?$/);if(!m)return NaN;return Math.round(parseFloat(m[1])*({k:1e3,m:1e6,b:1e9}[m[2]]||1))}
+function fmt(n,sign){const a=Math.abs(n),s=n<0?'-':(sign?'+':'');let t;
+  if(a>=1e9)t=(a/1e9).toFixed(2).replace(/\.?0+$/,'')+'B';else if(a>=1e6)t=(a/1e6).toFixed(2).replace(/\.?0+$/,'')+'M';else if(a>=1e5)t=(a/1e3).toFixed(1).replace(/\.0$/,'')+'K';else t=Math.round(a).toLocaleString();return s+t}
+const tax=p=>p<50?0:Math.min(Math.floor(p*.02),5e6);
+const net=p=>S.tax?p-tax(p):p;
+const pct=(a,b)=>b?((a/b)*100):0;
+function totals(){let v=0,c=0;for(const p of S.positions){v+=p.qty*net(p.price);c+=p.qty*p.buy}return{v,c,u:v-c}}
+function when(t){const d=(Date.now()-t)/1000;if(d<60)return'just now';if(d<3600)return Math.floor(d/60)+'m ago';if(d<86400)return Math.floor(d/3600)+'h ago';return new Date(t).toLocaleDateString(undefined,{month:'short',day:'numeric'})}
+const uid=()=>Math.random().toString(36).slice(2,10);
+
+function snap(){const v=totals().v,t=Date.now(),h=S.history,l=h[h.length-1];
+  if(l&&t-l.t<6e5)l.v=v,l.t=t;else h.push({t,v});if(h.length>400)S.history=h.slice(-400)}
+function logIt(name,side,qty,price){S.log.unshift({t:Date.now(),name,side,qty,price});S.log=S.log.slice(0,60)}
+
+function saveLocal(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
+async function save(){saveLocal();if(!ref)return;if(saving){again=true;return}saving=true;
+  try{await ref.set(JSON.parse(JSON.stringify(S)))}catch(e){setStatus('Could not sync: saved on this device only')}
+  saving=false;if(again){again=false;save()}}
+function commit(){snap();render();save()}
+
+function setStatus(t){$('#status').textContent=t}
+
+function render(){
+  const{v,c,u}=totals();const pts=rangePts();const base=pts.length?pts[0].v:c;
+  const d=range==='all'?u:v-base,dp=range==='all'?pct(u,c):pct(v-base,base);
+  const up=d>=0;document.documentElement.style.setProperty('--acc',up?'var(--up)':'var(--down)');
+  $('#total').textContent=fmt(v)+' gp';
+  const lab={'1d':'Today','1w':'Past week','1m':'Past month','3m':'Past 3 months','all':'All time'}[range];
+  $('#chg').className='num '+(up?'up':'down');$('#chg').textContent=`${fmt(d,1)} (${dp>=0?'+':''}${dp.toFixed(2)}%) ${lab}`;
+  $('#sCost').textContent=fmt(c);
+  const su=$('#sUnr');su.textContent=fmt(u,1);su.className='num '+(u>=0?'up':'down');
+  const sr=$('#sReal');sr.textContent=fmt(S.realized,1);sr.className='num '+(S.realized>=0?'up':'down');
+  $('#taxTog').checked=S.tax;
+  const ps=[...S.positions].sort((a,b)=>b.qty*b.price-a.qty*a.price);
+  $('#list').innerHTML=ps.length?ps.map(p=>{const val=p.qty*net(p.price),pl=val-p.qty*p.buy,pc=pct(pl,p.qty*p.buy);
+    return`<button class="row" data-id="${p.id}"><div class="nm"><b>${esc(p.name)}</b><span class="num">${p.qty.toLocaleString()} × ${fmt(p.buy)} avg</span></div><div class="rt"><b>${fmt(val)}</b><span class="pill${pl<0?' down':''}">${pc>=0?'+':''}${pc.toFixed(2)}%</span></div></button>`}).join('')
+    :`<div class="empty">No items yet. Tap <b>Add item</b> to log your first flip.</div>`;
+  $('#log').innerHTML=S.log.length?S.log.slice(0,12).map(l=>`<div><span>${l.side} ${l.qty.toLocaleString()} ${esc(l.name)}</span><span class="num">@ ${fmt(l.price)} · ${when(l.t)}</span></div>`).join(''):'<div><span style="color:var(--mut)">Buys, sells and price updates show up here.</span></div>';
+  draw();
+}
+
+function rangePts(){const span={'1d':864e5,'1w':6048e5,'1m':2592e6,'3m':7776e6}[range];const h=S.history;
+  if(!span)return h;const from=Date.now()-span;const inR=h.filter(p=>p.t>=from);const before=h.filter(p=>p.t<from).pop();return before?[{t:from,v:before.v},...inR]:inR}
+
+const svg=$('#chart');let geo=null;
+function draw(){const W=svg.clientWidth,H=svg.clientHeight;if(!W)return;let pts=rangePts().slice();
+  const v=totals().v;if(!pts.length||pts[pts.length-1].v!==v)pts.push({t:Date.now(),v});
+  $('#hint').textContent=pts.length<3?'Your chart fills in as you add items and update prices':'';
+  if(pts.length<2)pts=[{t:Date.now()-1,v},{t:Date.now(),v}];
+  const t0=pts[0].t,t1=pts[pts.length-1].t,vs=pts.map(p=>p.v);let lo=Math.min(...vs),hi=Math.max(...vs);
+  if(hi===lo){hi+=1;lo-=1}const pad=24;
+  const X=t=>((t-t0)/((t1-t0)||1))*W,Y=val=>pad+(1-(val-lo)/(hi-lo))*(H-pad*2);
+  const line=pts.map((p,i)=>(i?'L':'M')+X(p.t).toFixed(1)+' '+Y(p.v).toFixed(1)).join('');
+  geo={pts,X,Y,W};
+  svg.innerHTML=`<defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="currentColor" stop-opacity=".22"/><stop offset="1" stop-color="currentColor" stop-opacity="0"/></linearGradient></defs>
+  <g style="color:var(--acc)"><line x1="0" x2="${W}" y1="${Y(pts[0].v)}" y2="${Y(pts[0].v)}" stroke="var(--mut)" stroke-dasharray="2 5" stroke-opacity=".6"/>
+  <path d="${line}L${W} ${H}L0 ${H}Z" fill="url(#g)"/><path d="${line}" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/>
+  <g id="cur" style="display:none"><line id="cl" y1="0" y2="${H}" stroke="var(--mut)" stroke-width="1"/><circle id="cc" r="5" fill="currentColor" stroke="var(--bg)" stroke-width="2"/></g></g>`}
+const ro=new ResizeObserver(draw);ro.observe(svg);
+
+function scrub(e){if(!geo)return;const r=svg.getBoundingClientRect(),x=e.clientX-r.left;let best=geo.pts[0];
+  for(const p of geo.pts)if(Math.abs(geo.X(p.t)-x)<Math.abs(geo.X(best.t)-x))best=p;
+  const cx=geo.X(best.t),cy=geo.Y(best.v);$('#cur').style.display='';$('#cl').setAttribute('x1',cx);$('#cl').setAttribute('x2',cx);$('#cc').setAttribute('cx',cx);$('#cc').setAttribute('cy',cy);
+  const base=geo.pts[0].v,d=best.v-base;$('#total').textContent=fmt(best.v)+' gp';
+  $('#chg').className='num '+(d>=0?'up':'down');$('#chg').textContent=`${fmt(d,1)} (${d>=0?'+':''}${pct(d,base).toFixed(2)}%) ${new Date(best.t).toLocaleString(undefined,{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})}`}
+const fig=$('#fig');fig.addEventListener('pointermove',scrub);fig.addEventListener('pointerdown',scrub);
+['pointerleave','pointerup','pointercancel'].forEach(ev=>fig.addEventListener(ev,()=>render()));
+
+$('#ranges').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;range=b.dataset.r;
+  document.querySelectorAll('#ranges button').forEach(x=>x.classList.toggle('on',x===b));render()});
+$('#taxTog').addEventListener('change',e=>{S.tax=e.target.checked;commit()});
+
+/* live prices */
+async function getJSON(u){const c=new AbortController(),t=setTimeout(()=>c.abort(),7000);try{const r=await fetch(u,{signal:c.signal});if(!r.ok)throw 0;return await r.json()}finally{clearTimeout(t)}}
+async function live(manual){if(manual)setStatus('Checking GE prices…');
+  try{if(!map){map=await getJSON('https://prices.runescape.wiki/api/v1/osrs/mapping');$('#items').innerHTML=map.map(i=>`<option value="${esc(i.name)}">`).join('')}
+    const{data}=await getJSON('https://prices.runescape.wiki/api/v1/osrs/latest');const by={};for(const i of map)by[i.name.toLowerCase()]=i.id;
+    let n=0;for(const p of S.positions){const id=by[p.name.toLowerCase()],q=id&&data[id];if(q){const pr=q.low||q.high;if(pr&&pr!==p.price){p.price=pr;n++}}}
+    if(n||manual)commit();setStatus('Live GE prices · updated '+new Date().toLocaleTimeString([],{hour:'numeric',minute:'2-digit'}))}
+  catch(e){setStatus(manual?'Live prices can’t load in this viewer. Tap an item to set its current price.':'Manual prices · tap an item to update its price')}}
+$('#refBtn').addEventListener('click',()=>live(true));
+
+/* sheet */
+function openSheet(html){$('#sheetIn').innerHTML=html;$('#veil').classList.add('on');$('#sheet').classList.add('on');const f=$('#sheetIn input');if(f&&!openId)setTimeout(()=>f.focus(),260)}
+function closeSheet(){$('#veil').classList.remove('on');$('#sheet').classList.remove('on');openId=null;delArm=false}
+$('#veil').addEventListener('click',closeSheet);
+
+function addForm(){openId=null;openSheet(`<h3>Add item</h3>
+  <form id="fAdd"><div class="field"><label for="aName">Item</label><input id="aName" list="items" autocomplete="off" placeholder="e.g. Abyssal whip" required></div>
+  <div class="two"><div class="field"><label for="aQty">Quantity</label><input id="aQty" inputmode="decimal" placeholder="100"></div>
+  <div class="field"><label for="aBuy">Buy price each</label><input id="aBuy" inputmode="decimal" placeholder="1.2m"></div></div>
+  <div class="field"><label for="aCur">Current price each (optional)</label><input id="aCur" inputmode="decimal" placeholder="Same as buy"></div>
+  <p class="err" id="aErr"></p><button class="btn" style="width:100%">Add to portfolio</button></form>`);
+  $('#fAdd').addEventListener('submit',e=>{e.preventDefault();const name=$('#aName').value.trim(),qty=parseGp($('#aQty').value),buy=parseGp($('#aBuy').value),cur=$('#aCur').value.trim()?parseGp($('#aCur').value):buy;
+    if(!name||!(qty>0)||!(buy>=0)||!(cur>=0)){$('#aErr').textContent='Enter an item, a quantity and a buy price.';return}
+    const ex=S.positions.find(p=>p.name.toLowerCase()===name.toLowerCase());
+    if(ex){ex.buy=Math.round((ex.qty*ex.buy+qty*buy)/(ex.qty+qty));ex.qty+=qty;ex.price=cur}else S.positions.push({id:uid(),name,qty,buy,price:cur});
+    logIt(name,'Bought',qty,buy);commit();closeSheet();live(false)})}
+$('#addBtn').addEventListener('click',addForm);
+
+function detail(id){openId=id;const p=S.positions.find(x=>x.id===id);if(!p)return closeSheet();
+  const val=p.qty*net(p.price),pl=val-p.qty*p.buy;
+  const tabs=[['price','Price'],['buy','Buy'],['sell','Sell'],['edit','Edit']].map(([k,l])=>`<button type="button" data-t="${k}" class="${tab===k?'on':''}">${l}</button>`).join('');
+  const body={
+    price:`<div class="field"><label for="dP">Current price each</label><input id="dP" inputmode="decimal" value="${p.price}"></div><button class="btn" style="width:100%;margin-top:14px">Update price</button>`,
+    buy:`<div class="two"><div class="field"><label for="dQ">Quantity</label><input id="dQ" inputmode="decimal"></div><div class="field"><label for="dB">Price each</label><input id="dB" inputmode="decimal" value="${p.price}"></div></div><button class="btn" style="width:100%;margin-top:14px">Buy more</button><p class="note">Your average buy price updates automatically.</p>`,
+    sell:`<div class="two"><div class="field"><label for="dQ">Quantity (max ${p.qty.toLocaleString()})</label><input id="dQ" inputmode="decimal" value="${p.qty}"></div><div class="field"><label for="dB">Sold at each</label><input id="dB" inputmode="decimal" value="${p.price}"></div></div><button class="btn" style="width:100%;margin-top:14px">Record sale</button><p class="note" id="sNote"></p>`,
+    edit:`<div class="two"><div class="field"><label for="dQ">Quantity</label><input id="dQ" inputmode="decimal" value="${p.qty}"></div><div class="field"><label for="dB">Avg buy price</label><input id="dB" inputmode="decimal" value="${p.buy}"></div></div><button class="btn" style="width:100%;margin-top:14px">Save changes</button><button type="button" class="del" id="dDel">${delArm?'Tap again to remove':'Remove item'}</button>`}[tab];
+  openSheet(`<h3>${esc(p.name)}</h3><div class="num" style="font:700 30px 'Inter Tight',sans-serif;margin-top:4px">${fmt(p.price)} gp</div>
+    <p class="num ${pl>=0?'up':'down'}" style="margin:2px 0 0;font-weight:600">${fmt(pl,1)} (${pct(pl,p.qty*p.buy)>=0?'+':''}${pct(pl,p.qty*p.buy).toFixed(2)}%) on ${p.qty.toLocaleString()} @ ${fmt(p.buy)}</p>
+    <div class="tabs">${tabs}</div><form id="fD">${body}<p class="err" id="dErr"></p></form>`);
+  $('#sheetIn .tabs').addEventListener('click',e=>{const b=e.target.closest('button');if(b){tab=b.dataset.t;delArm=false;detail(id)}});
+  const sn=$('#sNote');if(sn){const upd=()=>{const q=parseGp($('#dQ').value),pr=parseGp($('#dB').value);if(q>0&&pr>=0){const prof=q*(pr-tax(pr)-p.buy);sn.textContent=`Profit after GE tax: ${fmt(prof,1)} gp (tax ${fmt(q*tax(pr))})`}};upd();$('#dQ').addEventListener('input',upd);$('#dB').addEventListener('input',upd)}
+  const dd=$('#dDel');if(dd)dd.addEventListener('click',()=>{if(!delArm){delArm=true;dd.textContent='Tap again to remove';return}S.positions=S.positions.filter(x=>x.id!==id);logIt(p.name,'Removed',p.qty,p.price);commit();closeSheet()});
+  $('#fD').addEventListener('submit',e=>{e.preventDefault();const err=t=>$('#dErr').textContent=t;
+    if(tab==='price'){const v=parseGp($('#dP').value);if(!(v>=0))return err('Enter a price like 1.2m');p.price=v;logIt(p.name,'Priced',p.qty,v)}
+    else{const q=parseGp($('#dQ').value),pr=parseGp($('#dB').value);if(!(q>=0)||!(pr>=0))return err('Check the quantity and price.');
+      if(tab==='buy'){if(!q)return err('Enter a quantity.');p.buy=Math.round((p.qty*p.buy+q*pr)/(p.qty+q));p.qty+=q;logIt(p.name,'Bought',q,pr)}
+      if(tab==='sell'){if(!q||q>p.qty)return err(`You can sell 1 to ${p.qty.toLocaleString()}.`);S.realized+=Math.round(q*(pr-tax(pr)-p.buy));p.qty-=q;logIt(p.name,'Sold',q,pr);if(!p.qty)S.positions=S.positions.filter(x=>x.id!==id)}
+      if(tab==='edit'){if(!q)return err('Use Remove item to delete it.');p.qty=q;p.buy=pr}}
+    commit();closeSheet()})}
+$('#list').addEventListener('click',e=>{const r=e.target.closest('.row');if(r){tab='price';delArm=false;detail(r.dataset.id)}});
+
+/* boot */
+try{const raw=localStorage.getItem(KEY);if(raw)S=Object.assign(S,JSON.parse(raw))}catch(e){}
+render();setStatus('Manual prices · tap an item to update its price');live(false);
+(async()=>{if(!(window.claude&&claude.use))return;try{
+  const db=await claude.use('db'),user=await claude.use('user');const id=user&&await user.id();if(!db||!id)return;
+  ref=db.doc('data/users/'+id+'/portfolio');let first=true;const timer=setTimeout(()=>setStatus('Sync is slow to respond; changes are kept on this device'),10000);
+  ref.onSnapshot(s=>{if(!s.metadata.fromCache)clearTimeout(timer);
+    if(s.exists){if(!s.metadata.hasPendingWrites){S=Object.assign({positions:[],realized:0,history:[],log:[],tax:true},JSON.parse(JSON.stringify(s.data())));saveLocal();render();if(openId)detail(openId)}}
+    else if(first&&!s.metadata.fromCache&&(S.positions.length||S.log.length))save();
+    if(!s.metadata.fromCache)first=false},()=>{clearTimeout(timer);ref=null;setStatus('Sync unavailable; changes are kept on this device')})
+}catch(e){ref=null}})();
+}
+</script>
+</body>
+</html>
